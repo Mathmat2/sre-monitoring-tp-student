@@ -1,0 +1,21 @@
+name: l5-crash-loop-api
+description: >-
+  Scénario Level 5 (capstone, non annoncé) : l'api est tuée trois fois en
+  quelques minutes. Attendu : le contrôleur redémarre à chaque fois (actions
+  'start' dans /actions) et escalade à un humain ('page') dès le deuxième
+  crash dans la fenêtre de 5 minutes. Si personne ne réagit : l'api reste
+  down entre les kills — c'est le score qui le dira.
+duration_seconds: 420
+steps:
+  - at_seconds: 0
+    action: kill
+    params:
+      target: api
+  - at_seconds: 120
+    action: kill
+    params:
+      target: api
+  - at_seconds: 260
+    action: kill
+    params:
+      target: api

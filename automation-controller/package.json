@@ -1,0 +1,11 @@
+{
+  "name": "sre-tp-automation-controller",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Contrôleur d'auto-remédiation du TP Monitoring & SRE",
+  "dependencies": {
+    "dockerode": "^4.0.2",
+    "express": "^4.21.2",
+    "pino": "^9.6.0"
+  }
+}

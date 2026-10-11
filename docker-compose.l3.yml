@@ -1,0 +1,21 @@
+services:
+  jaeger:
+    image: jaegertracing/all-in-one:1.62.0
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"
+      - "4318:4318"
+
+  # Le SDK OpenTelemetry doit être initialisé AVANT le code applicatif :
+  # ces commandes chargent tracing.js via --require (créé par les étudiants,
+  # voir TUTORIAL.md niveau 3, étape 2).
+  api:
+    command: ["node", "--require", "./api/tracing.js", "api/server.js"]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+
+  worker:
+    command: ["node", "--require", "./worker/tracing.js", "worker/worker.js"]
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces

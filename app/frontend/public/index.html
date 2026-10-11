@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expense.io — Commandes</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1c2733; }
+    h1 { font-size: 1.4rem; }
+    form { display: flex; gap: .5rem; margin-bottom: 1.5rem; }
+    input { padding: .5rem; flex: 1; }
+    button { padding: .5rem 1rem; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid #dfe5ea; font-size: .9rem; }
+    .pending { color: #b7791f; } .processing { color: #2b6cb0; }
+    .completed { color: #276749; } .failed { color: #c53030; }
+    #apiState { font-size: .8rem; color: #718096; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Expense.io — passer une commande</h1>
+  <form id="orderForm">
+    <input id="item" placeholder="Article (ex: clavier mécanique)" required />
+    <input id="amount" type="number" step="0.01" min="0" placeholder="Montant" required />
+    <button type="submit">Commander</button>
+  </form>
+  <table>
+    <thead><tr><th>#</th><th>Article</th><th>Montant</th><th>Statut</th><th>Mise à jour</th></tr></thead>
+    <tbody id="orders"></tbody>
+  </table>
+  <div id="apiState"></div>
+  <script>
+    const API = 'http://localhost:3001';
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    async function refresh() {
+      try {
+        const res = await fetch(API + '/orders');
+        const orders = await res.json();
+        document.getElementById('orders').innerHTML = orders.map(o => `
+          <tr>
+            <td>${o.id}</td>
+            <td>${escapeHtml(o.item)}</td>
+            <td>${Number(o.amount).toFixed(2)} €</td>
+            <td class="${o.status}">${o.status}</td>
+            <td>${new Date(o.updated_at).toLocaleTimeString()}</td>
+          </tr>`).join('');
+        document.getElementById('apiState').textContent = 'API OK — ' + orders.length + ' commande(s)';
+      } catch (err) {
+        document.getElementById('apiState').textContent = 'API injoignable : ' + err.message;
+      }
+    }
+
+    document.getElementById('orderForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const item = document.getElementById('item').value;
+      const amount = Number(document.getElementById('amount').value);
+      // L1 : un ID de corrélation est généré ici et propagé à l'api,
+      // qui le transmet au worker via le payload du job Redis.
+      const requestId = crypto.randomUUID();
+      try {
+        const res = await fetch(API + '/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-request-id': requestId },
+          body: JSON.stringify({ item, amount })
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          alert('Erreur ' + res.status + ' : ' + (body.error || 'inconnue'));
+        }
+      } catch (err) {
+        alert('API injoignable : ' + err.message);
+      }
+      refresh();
+    });
+
+    refresh();
+    setInterval(refresh, 2000);
+  </script>
+</body>
+</html>

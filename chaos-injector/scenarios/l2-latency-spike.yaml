@@ -1,0 +1,23 @@
+name: l2-latency-spike
+description: >-
+  Scénario Level 2 : pic de latence sur l'api (900 ms ± 300), puis salve
+  d'erreurs 30 %. Les deux alertes (P99LatencyTooHigh, ErrorRateTooHigh)
+  doivent se déclencher, et le dashboard doit permettre de localiser le
+  service en cause — sans trancher la cause racine (c'est le rôle du
+  tracing, niveau 3).
+duration_seconds: 180
+steps:
+  - at_seconds: 0
+    action: latency
+    params:
+      target: api
+      ms: 900
+      jitter: 300
+  - at_seconds: 45
+    action: error-rate
+    params:
+      target: api
+      rate: 0.3
+  - at_seconds: 120
+    action: reset
+    params: {}

@@ -1,0 +1,44 @@
+name: l4-mixed-30min
+description: >-
+  Scénario Level 4 : ~25 minutes de pannes mixtes pour consommer visiblement
+  le budget d'erreur — latence modérée, erreurs intermittentes, épuisement du
+  pool Postgres, ralentissement redis. L'objectif n'est pas le diagnostic
+  (faits aux niveaux précédents) mais d'observer la consommation du budget
+  d'erreur et de matérialiser un postmortem.
+duration_seconds: 1800
+steps:
+  - at_seconds: 0
+    action: latency
+    params:
+      target: api
+      ms: 400
+      jitter: 200
+  - at_seconds: 300
+    action: error-rate
+    params:
+      target: api
+      rate: 0.1
+  - at_seconds: 600
+    action: db-pool-exhaust
+    params:
+      connections: 8
+  - at_seconds: 900
+    action: reset
+    params: {}
+  - at_seconds: 960
+    action: dep-slow
+    params:
+      dependency: redis
+      ms: 400
+  - at_seconds: 1500
+    action: reset
+    params: {}
+  # Phase métier : perte silencieuse de jobs (invisible côté HTTP et infra).
+  - at_seconds: 1560
+    action: job-drop
+    params:
+      target: worker
+      rate: 0.4
+  - at_seconds: 1740
+    action: reset
+    params: {}

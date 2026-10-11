@@ -1,0 +1,8 @@
+{
+  "name": "sre-tp-webhook-receiver",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

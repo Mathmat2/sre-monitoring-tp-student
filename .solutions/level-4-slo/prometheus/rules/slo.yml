@@ -1,0 +1,129 @@
+groups:
+  - name: sli
+    rules:
+      # SLI disponibilité : fraction des POST /orders qui ne sont PAS des 5xx.
+      # Compter les succès plutôt que les échecs évite le piège du numérateur
+      # vide (aucune série status="5.." tant qu'il n'y a eu aucun 5xx).
+      - record: sli_availability_ratio_5m
+        expr: |
+          sum(rate(http_requests_total{service="api", status!~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{service="api"}[5m]))
+
+      - record: sli_availability_ratio_1h
+        expr: |
+          sum(rate(http_requests_total{service="api", status!~"5.."}[1h]))
+          /
+          sum(rate(http_requests_total{service="api"}[1h]))
+
+      - record: sli_availability_ratio_6h
+        expr: |
+          sum(rate(http_requests_total{service="api", status!~"5.."}[6h]))
+          /
+          sum(rate(http_requests_total{service="api"}[6h]))
+
+      - record: sli_availability_ratio_3d
+        expr: |
+          sum(rate(http_requests_total{service="api", status!~"5.."}[3d]))
+          /
+          sum(rate(http_requests_total{service="api"}[3d]))
+
+      # SLI latence : fraction des POST /orders sous 300 ms.
+      - record: sli_latency_ok_ratio_5m
+        expr: |
+          sum(rate(http_request_duration_seconds_bucket{service="api", route="/orders", le="0.3"}[5m]))
+          /
+          sum(rate(http_request_duration_seconds_count{service="api", route="/orders"}[5m]))
+
+  - name: sli-orders
+    rules:
+      # SLI MÉTIER : fraction des commandes créées qui sont terminées en moins de
+      # 10 s. Le dénominateur est le nombre de commandes CRÉÉES (api) : un job
+      # perdu en silence ne compte ni completed ni failed, mais fait quand même
+      # chuter ce ratio — c'est exactement ce que le SLI HTTP ne voit pas.
+      - record: sli_orders_ratio_5m
+        expr: |
+          clamp_max(
+            sum(rate(order_processing_seconds_bucket{le="10"}[5m]))
+            /
+            sum(rate(orders_total{status="created"}[5m])),
+          1)
+
+      - record: sli_orders_ratio_1h
+        expr: |
+          clamp_max(
+            sum(rate(order_processing_seconds_bucket{le="10"}[1h]))
+            /
+            sum(rate(orders_total{status="created"}[1h])),
+          1)
+
+      - record: sli_orders_ratio_6h
+        expr: |
+          clamp_max(
+            sum(rate(order_processing_seconds_bucket{le="10"}[6h]))
+            /
+            sum(rate(orders_total{status="created"}[6h])),
+          1)
+
+      - record: sli_orders_ratio_3d
+        expr: |
+          clamp_max(
+            sum(rate(order_processing_seconds_bucket{le="10"}[3d]))
+            /
+            sum(rate(orders_total{status="created"}[3d])),
+          1)
+
+  - name: slo-burn-rate
+    rules:
+      # SLO 99.5 % / 30 j -> budget = 0.005.
+      # Brûlure rapide : 5 min + 1 h à burn 14.4 (2 % de budget/heure).
+      - alert: SLOAvailabilityBurnFast
+        expr: |
+          ((1 - sli_availability_ratio_5m) / 0.005 > 14.4)
+          and
+          ((1 - sli_availability_ratio_1h) / 0.005 > 14.4)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Budget d'erreur brûlé rapidement (14.4x) sur /orders"
+          description: "À ce rythme, le budget mensuel est consommé en ~14 h. Pager."
+
+      # Brûlure lente : 6 h + 3 j à burn 1 (10 % du budget en 3 jours).
+      - alert: SLOAvailabilityBurnSlow
+        expr: |
+          ((1 - sli_availability_ratio_6h) / 0.005 > 1)
+          and
+          ((1 - sli_availability_ratio_3d) / 0.005 > 1)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Budget d'erreur consommé au rythme nominal (1x) sur /orders"
+          description: "Consommation continue du budget : ticket fiabilité, gel des déploiements risqués à discuter."
+
+      # ── Alertes sur le SLI MÉTIER (commandes terminées en < 10 s) ──────────
+      # Même SLO (99.5 %) et mêmes fenêtres que la disponibilité HTTP.
+      - alert: SLOOrdersBurnFast
+        expr: |
+          ((1 - sli_orders_ratio_5m) / 0.005 > 14.4)
+          and
+          ((1 - sli_orders_ratio_1h) / 0.005 > 14.4)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Commandes non terminées à brûlure rapide (14.4x)"
+          description: "Des commandes sont créées mais pas terminées dans les 10 s : le HTTP peut rester vert. Pager."
+
+      - alert: SLOOrdersBurnSlow
+        expr: |
+          ((1 - sli_orders_ratio_6h) / 0.005 > 1)
+          and
+          ((1 - sli_orders_ratio_3d) / 0.005 > 1)
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Commandes non terminées au rythme nominal (1x)"
+          description: "Le budget d'erreur métier se consomme en continu : ticket fiabilité."

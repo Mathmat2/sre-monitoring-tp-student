@@ -1,0 +1,18 @@
+name: l5-silent-job-loss
+description: >-
+  Scénario Level 5 (capstone, non annoncé) : le worker acquitte les jobs sans
+  les traiter (perte silencieuse). L'infrastructure est verte de bout en bout :
+  conteneurs running, CPU et mémoire normaux, queue vide, HTTP 202. Attendu :
+  le SLI commandes (L4) chute et SLOOrdersBurnFast part ; le contrôleur escalade
+  par une 'page' « commandes bloquées » (règle 3, signal applicatif). Restart ou
+  scale ne récupèrent pas les commandes déjà perdues.
+duration_seconds: 360
+steps:
+  - at_seconds: 0
+    action: job-drop
+    params:
+      target: worker
+      rate: 1
+  - at_seconds: 300
+    action: reset
+    params: {}

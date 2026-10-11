@@ -1,0 +1,13 @@
+{
+  "name": "sre-tp-chaos-injector",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Service d'injection de pannes du TP Monitoring & SRE",
+  "dependencies": {
+    "dockerode": "^4.0.2",
+    "express": "^4.21.2",
+    "ioredis": "^5.4.2",
+    "js-yaml": "^4.1.0",
+    "pg": "^8.13.1"
+  }
+}

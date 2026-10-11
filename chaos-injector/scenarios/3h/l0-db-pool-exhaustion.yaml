@@ -1,0 +1,19 @@
+name: 3h-l0-db-pool-exhaustion
+description: >-
+  Édition 3 h du scénario L0 (pool Postgres épuisé puis latence) : 2 min 30
+  au lieu de 5. À lancer sans en révéler le contenu.
+duration_seconds: 150
+steps:
+  - at_seconds: 0
+    action: db-pool-exhaust
+    params:
+      connections: 8
+  - at_seconds: 15
+    action: latency
+    params:
+      target: api
+      ms: 400
+      jitter: 400
+  - at_seconds: 130
+    action: reset
+    params: {}

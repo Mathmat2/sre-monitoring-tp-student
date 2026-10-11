@@ -1,0 +1,26 @@
+name: l3-cascading-redis-slowdown
+description: >-
+  Scénario Level 3 : ralentissement progressif de Redis (200 → 500 → 800 ms).
+  Vu des dashboards L2 : le p99 de l'api s'envole et la queue s'accumule —
+  le réflexe naïf est d'accuser le code de l'api. Vu du tracing : le temps est
+  passé dans les appels redis (dep-slow), pas dans le code métier.
+duration_seconds: 180
+steps:
+  - at_seconds: 0
+    action: dep-slow
+    params:
+      dependency: redis
+      ms: 200
+  - at_seconds: 30
+    action: dep-slow
+    params:
+      dependency: redis
+      ms: 500
+  - at_seconds: 60
+    action: dep-slow
+    params:
+      dependency: redis
+      ms: 800
+  - at_seconds: 150
+    action: reset
+    params: {}

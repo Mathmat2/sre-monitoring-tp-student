@@ -1,0 +1,16 @@
+name: 3h-l5-silent-job-loss
+description: >-
+  Capstone 3 h (non annoncé) : le worker perd tous les jobs en silence pendant
+  3 min 30. Aucune métrique d'infrastructure ne bouge (conteneurs running, CPU
+  normal, queue vide, HTTP 202). Attendu : SLOOrdersBurnFast (L4) puis une
+  action 'page' « commandes bloquées » du contrôleur (règle 3, signal applicatif).
+duration_seconds: 210
+steps:
+  - at_seconds: 0
+    action: job-drop
+    params:
+      target: worker
+      rate: 1
+  - at_seconds: 200
+    action: reset
+    params: {}

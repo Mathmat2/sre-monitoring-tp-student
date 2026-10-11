@@ -1,0 +1,18 @@
+name: 3h-l5-crash-loop-api
+description: >-
+  Capstone 3 h (non annoncé) : l'api est tuée trois fois en 3 minutes.
+  Attendu : 'start' à chaque kill, 'page' dès le 2e crash dans la fenêtre.
+duration_seconds: 240
+steps:
+  - at_seconds: 0
+    action: kill
+    params:
+      target: api
+  - at_seconds: 60
+    action: kill
+    params:
+      target: api
+  - at_seconds: 150
+    action: kill
+    params:
+      target: api

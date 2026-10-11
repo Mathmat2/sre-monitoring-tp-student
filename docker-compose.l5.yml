@@ -1,0 +1,21 @@
+services:
+  automation-controller:
+    build:
+      context: .
+      dockerfile: automation-controller/Dockerfile
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+      CHAOS_URL: http://chaos-injector:4000
+      WEBHOOK_URL: http://webhook-receiver:5001/alerts
+      POLL_INTERVAL_MS: "5000"
+      ACTION_COOLDOWN_MS: "30000"
+      DOCKER_SOCKET: /var/run/docker.sock
+      SERVICE_NAME: automation-controller
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "5002:5002"
+    depends_on:
+      - prometheus
+      - chaos-injector
+      - webhook-receiver

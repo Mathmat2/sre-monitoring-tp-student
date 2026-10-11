@@ -1,0 +1,23 @@
+name: l5-db-pool-squeeze
+description: >-
+  Scénario Level 5 (capstone, non annoncé) : le pool Postgres est étranglé
+  (exhaustion 8 connexions) puis chaque requête SQL ralentit. Attendu : le
+  circuit breaker de l'application s'ouvre (500 immédiats au lieu de requêtes
+  empilées), db_pool_waiting retombe, et à la remise à zéro le trafic reprend.
+  Bonus : relier l'incident aux alertes L4 (burn rate) et au waterfall L3.
+duration_seconds: 360
+steps:
+  - at_seconds: 0
+    action: db-pool-exhaust
+    params:
+      target: api
+      connections: 8
+  - at_seconds: 60
+    action: dep-slow
+    params:
+      target: worker
+      dependency: postgres
+      delay_ms: 400
+  - at_seconds: 200
+    action: reset
+    params: {}

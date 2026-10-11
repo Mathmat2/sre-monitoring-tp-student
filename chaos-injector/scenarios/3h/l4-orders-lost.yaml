@@ -1,0 +1,18 @@
+name: 3h-l4-orders-lost
+description: >-
+  Édition 3 h du scénario L4, côté MÉTIER : pendant 5 min, le worker acquitte
+  70 % des jobs sans les traiter. HTTP reste en 202, la queue reste vide, le CPU
+  et les conteneurs sont normaux : le SLI HTTP (disponibilité) ne bouge pas,
+  seul le SLI commandes (terminées en < 10 s) chute et fait partir
+  SLOOrdersBurnFast. Exige du trafic continu (bash scripts/traffic.sh 2) pendant
+  toute la durée et depuis ≥ 10 min avant, pour que la fenêtre 1 h soit remplie.
+duration_seconds: 330
+steps:
+  - at_seconds: 0
+    action: job-drop
+    params:
+      target: worker
+      rate: 0.7
+  - at_seconds: 300
+    action: reset
+    params: {}

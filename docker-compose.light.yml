@@ -1,0 +1,8 @@
+# Allège la stack pour des laptops d'étudiants (séance de 3 h) :
+# cAdvisor et node-exporter ne démarrent que avec `--profile full`.
+# (Leurs targets Prometheus apparaîtront DOWN : c'est attendu.)
+services:
+  cadvisor:
+    profiles: ["full"]
+  node-exporter:
+    profiles: ["full"]

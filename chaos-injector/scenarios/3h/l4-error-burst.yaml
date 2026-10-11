@@ -1,0 +1,16 @@
+name: 3h-l4-error-burst
+description: >-
+  Édition 3 h du scénario L4 : une salve d'erreurs de 5 min (60 %) pour faire
+  franchir le seuil de brûlure rapide (14.4x) sur les fenêtres 5m ET 1h.
+  Exige du trafic continu (bash scripts/traffic.sh 2) pendant toute la durée
+  et idéalement depuis ≥ 10 min avant, pour que la fenêtre 1h ne soit pas vide.
+duration_seconds: 330
+steps:
+  - at_seconds: 0
+    action: error-rate
+    params:
+      target: api
+      rate: 0.6
+  - at_seconds: 300
+    action: reset
+    params: {}

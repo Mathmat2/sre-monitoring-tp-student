@@ -1,0 +1,21 @@
+name: l0-db-pool-exhaustion
+description: >-
+  Scénario Level 0 : le pool de connexions Postgres de l'api est épuisé
+  (8 des 10 connexions retenues par le chaos-injector), puis une latence
+  artificielle est ajoutée sur l'api. De l'extérieur, l'app semble "lente
+  puis en erreur", sans qu'aucun outil ne permette de dire pourquoi.
+duration_seconds: 300
+steps:
+  - at_seconds: 0
+    action: db-pool-exhaust
+    params:
+      connections: 8
+  - at_seconds: 20
+    action: latency
+    params:
+      target: api
+      ms: 400
+      jitter: 400
+  - at_seconds: 240
+    action: reset
+    params: {}

@@ -1,0 +1,20 @@
+name: 3h-l2-latency-spike
+description: >-
+  Édition 3 h du scénario L2 : pic de latence puis salve d'erreurs, 2 min.
+  Les alertes ErrorRateTooHigh et P99LatencyTooHigh doivent partir.
+duration_seconds: 120
+steps:
+  - at_seconds: 0
+    action: latency
+    params:
+      target: api
+      ms: 900
+      jitter: 300
+  - at_seconds: 30
+    action: error-rate
+    params:
+      target: api
+      rate: 0.3
+  - at_seconds: 100
+    action: reset
+    params: {}

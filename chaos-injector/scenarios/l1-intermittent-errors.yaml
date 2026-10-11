@@ -1,0 +1,34 @@
+name: l1-intermittent-errors
+description: >-
+  Scénario Level 1 : erreurs 500 intermittentes en trois salves (api ~30 %,
+  puis ~15 %, plus une salve côté worker). Avec des logs structurés et une
+  corrélation par request ID, le motif doit être isolé en quelques requêtes
+  LogQL.
+duration_seconds: 240
+steps:
+  - at_seconds: 0
+    action: error-rate
+    params:
+      target: api
+      rate: 0.3
+  - at_seconds: 45
+    action: error-rate
+    params:
+      target: worker
+      rate: 0.4
+  - at_seconds: 90
+    action: error-rate
+    params:
+      target: api
+      rate: 0.15
+  - at_seconds: 150
+    action: reset
+    params: {}
+  - at_seconds: 180
+    action: error-rate
+    params:
+      target: api
+      rate: 0.05
+  - at_seconds: 200
+    action: reset
+    params: {}
