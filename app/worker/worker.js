@@ -18,6 +18,9 @@ async function processOrder(job) {
   if (faults.delayMs > 0) {
     await chaos.sleep(faults.delayMs);
   }
+  if (faults.shouldDrop) {
+    return; // chaos (infra fournie) : job acquitté sans traitement = perte silencieuse (L4/L5)
+  }
   await query("UPDATE orders SET status = 'processing', updated_at = now() WHERE id = $1", [job.orderId]);
   await sleep(200 + Math.floor(Math.random() * 300));
   await query("UPDATE orders SET status = 'completed', updated_at = now() WHERE id = $1", [job.orderId]);

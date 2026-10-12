@@ -13,7 +13,7 @@ vérifiez votre travail vous-même (`validate.sh`).
 Prérequis : Docker (Desktop ou Engine) + Compose v2, `curl`, `jq`, bash, ~4 Go de RAM pour Docker.
 
 ```bash
-make check       # vérifie Docker, jq, ports, mémoire
+make check       # vérifie Docker, jq, ports
 make prefetch    # télécharge les images et construit tout : évite 15-20 min en séance
 ```
 
@@ -89,4 +89,7 @@ de produire le code.
 | Une alerte / une métrique n'apparaît pas | attendez 40 s après un redémarrage ; `docker compose restart prometheus` après avoir modifié sa config |
 | Conteneurs à l'état « Created » | `make down` puis relancez |
 | `awk`/`sleep` en erreur dans `traffic.sh` | déjà géré (`LC_ALL=C`) ; sinon exportez `LC_ALL=C` |
+| Une faute d'un niveau précédent semble encore active | `bash scripts/incident.sh reset` (à faire entre deux niveaux) |
+| `traffic.sh` tourne encore en tâche de fond | `make stop-traffic` |
+| Après la démo L3, retrouver votre code L2 (api/worker) | `make restore-l2` (voir `RENDU.md`) |
 | Repartir de zéro | `make reset` |

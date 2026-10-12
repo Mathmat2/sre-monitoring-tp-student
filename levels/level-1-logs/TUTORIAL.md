@@ -9,11 +9,10 @@
 ## Ce qui existe déjà (infra, à ne pas réinventer)
 
 - `docker-compose.l1.yml` ajoute **Loki** (stockage), **Promtail** (collecte des logs Docker) et **Grafana** (UI) — déjà configurés : Promtail scrappe les logs de tous les conteneurs et Grafana a la datasource Loki provisionnée.
-- Le stub `app/shared/logger.js` lève une erreur : c'est **votre** travail.
-- Chaque `console.log` de l'app est marqué `// TODO(student, L1)`.
+- `app/shared/logger.js` (pino, JSON, niveaux **textuels** `"level":"error"`) et la corrélation `x-request-id` sont déjà en place : les étapes 1 à 5 se lisent, ne les refaites pas.
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.l1.yml up -d --build
+make up-l1
 ```
 
 Grafana : http://localhost:3002 (admin / sre-tp, ou anonymous). Explore → Loki.
@@ -79,7 +78,7 @@ L'ordre des middlewares compte : celui-ci doit être enregistré **avant** les r
 
 ## Étape 5 — Remplacer tous les appels
 
-Chaque site marqué `// TODO(student, L1)` doit utiliser le logger structuré (avec ID de corrélation quand il y en a un). Le frontend enverra l'en-tête :
+Chaque appel de log (déjà converti dans l'arbre livré) utilise le logger structuré (avec ID de corrélation quand il y en a un). Le frontend enverra l'en-tête :
 
 ```js
 headers: { 'Content-Type': 'application/json', 'x-request-id': crypto.randomUUID() }
@@ -120,11 +119,12 @@ Générez du trafic en parallèle (UI ou boucle `curl` de l'étape Level 0). Ave
 2. Les échecs sont-ils aléatoires ou corrélés à quelque chose (route, payload, service) ?
 3. Montrez votre requête LogQL et la requête qui isole les lignes d'erreur d'un seul service.
 
-Rappels LogQL utiles :
+Les erreurs injectées sont loggées en JSON (`level="error"`, `injected=true`). Rappels LogQL utiles :
 ```
 {container=~".*api.*"}                              # tout l'api
 {container=~".*api.*"} |= "error"                   # filtre par contenu
 {container=~".*api.*"} | json | level="error"       # filtre par champ structuré
+{container=~".*api.*"} | json | level="error" | injected="true"   # seulement les erreurs injectées
 ```
 
 ## Étape 7 — Validation

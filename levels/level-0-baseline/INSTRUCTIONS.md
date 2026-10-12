@@ -4,13 +4,13 @@
 
 ## Prérequis
 
-- Docker Desktop (ou Docker Engine + Compose v2) fonctionnel, 8 Go de RAM disponibles.
+- Docker Desktop (ou Docker Engine + Compose v2) fonctionnel, ~4 Go de RAM alloués à Docker.
 - Les outils système : `curl`, `docker logs`, `docker stats`. **C'est tout** — et c'est justement le problème.
 
 ## 1. Démarrer l'application
 
 ```bash
-docker compose up -d --build
+make up-l0        # = docker compose -f docker-compose.yml -f docker-compose.light.yml up -d --build
 ```
 
 Vérifiez que l'application fonctionne :
@@ -21,6 +21,8 @@ curl -X POST http://localhost:3001/orders \
   -H 'Content-Type: application/json' \
   -d '{"item": "clavier mécanique", "amount": 89.9}'
 ```
+
+(Dans la suite, `docker compose …` doit porter les mêmes `-f` que le `Makefile` : utilisez les cibles `make` ou ajoutez `-f docker-compose.light.yml`.)
 
 Vous pouvez aussi passer des commandes depuis l'interface : http://localhost:3000
 
@@ -45,7 +47,7 @@ La panne se déroule en arrière-plan (≈ 2 min 30). Pour l'arrêter à tout mo
 
 Pendant que le scénario tourne :
 
-1. Générez du trafic : passez des commandes via l'UI ou en boucle :
+1. Générez du trafic (`make traffic` dans un second terminal, Ctrl-C pour l'arrêter ; ou `bash scripts/traffic.sh 2 &` puis `make stop-traffic`), passez des commandes via l'UI ou en boucle :
    ```bash
    while true; do
      curl -s -o /dev/null -w '%{http_code} %{time_total}s\n' -X POST http://localhost:3001/orders \

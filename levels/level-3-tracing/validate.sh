@@ -43,17 +43,25 @@ echo "$SERVICES" | grep -qw api && ok "service api tracé" || bad "aucune trace 
 echo "$SERVICES" | grep -qw worker && ok "service worker tracé" || bad "aucune trace du service worker"
 
 # --- 3. Propagation : une même trace contient api ET worker ---
+# Le côté worker est asynchrone (queue) : sous charge ou pendant un incident Redis il peut
+# arriver plusieurs dizaines de secondes plus tard -> on attend jusqu'à 60 s.
 FOUND_PROPAGATION=""
-TRACES=$(curl -sf "$JAEGER_URL/api/traces?service=api&start=$START_US&limit=100" | jq -c '.data[]? | . as $t | {traceID, services: ([.spans[] | .processID as $p | $t.processes[$p].serviceName] | unique), spanCount: (.spans | length)}')
-for trace in $TRACES; do
-  if echo "$trace" | jq -e '.services | index("api") and index("worker")' >/dev/null 2>&1; then
-    SPANS=$(echo "$trace" | jq -r '.spanCount')
-    FOUND_PROPAGATION="$trace"
-    ok "propagation api→worker : trace commune ($SPANS spans)"
-    break
-  fi
+for _ in $(seq 1 30); do
+  TRACES=$(curl -sf "$JAEGER_URL/api/traces?service=api&start=$START_US&limit=100" | jq -c '.data[]? | . as $t | {traceID, services: ([.spans[] | .processID as $p | $t.processes[$p].serviceName] | unique), spanCount: (.spans | length)}')
+  for trace in $TRACES; do
+    if echo "$trace" | jq -e '.services | index("api") and index("worker")' >/dev/null 2>&1; then
+      FOUND_PROPAGATION="$trace"
+      break
+    fi
+  done
+  [ -n "$FOUND_PROPAGATION" ] && break
+  sleep 2
 done
-[ -n "$FOUND_PROPAGATION" ] || bad "aucune trace commune api+worker — contexte propagé via le payload du job ? (étape 5)"
+if [ -n "$FOUND_PROPAGATION" ]; then
+  ok "propagation api→worker : trace commune ($(echo "$FOUND_PROPAGATION" | jq -r '.spanCount') spans)"
+else
+  bad "aucune trace commune api+worker en 60 s — contexte propagé via le payload du job ? (étape 5). Si un incident ou trafic.sh tourne encore : bash scripts/incident.sh reset"
+fi
 
 # --- 4. Span métier manuel processOrder ---
 if [ -n "$FOUND_PROPAGATION" ]; then

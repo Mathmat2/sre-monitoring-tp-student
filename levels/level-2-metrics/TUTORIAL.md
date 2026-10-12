@@ -6,6 +6,8 @@
 >
 > **Monitoring applicatif, pas infrastructure.** cAdvisor et node-exporter (CPU, RAM de la machine) sont scrapés mais ce TP ne les interroge jamais. Ce qui compte ici, c'est ce que **l'application** sait d'elle-même : ses requêtes (RED), ses dépendances (saturation) et surtout **ses commandes** (métriques métier, étape 4b).
 
+> **Édition 3 h** : `metrics.js`, les gauges du pool DB / de la queue (`db.js`, `backlog.js`), les métriques métier à déclarer et le dashboard Grafana sont **déjà fournis** (étapes 1, 2, 6 et la partie gauges de l'étape 4 : à lire, pas à refaire). Vous codez les étapes **3, 4 (worker `/metrics` + `job_duration_seconds`), 4b, 5 et 7** — voir `docs/TP_3H.md`.
+
 ## Ce qui existe déjà (infra, à ne pas réinventer)
 
 - `docker-compose.l2.yml` ajoute **Prometheus** (:9090), **cAdvisor** (métriques conteneurs, :8081), **node-exporter** (métriques VM, :9100), **Alertmanager** (:9093) et un **webhook-receiver** local (:5001) qui fait office de PagerDuty de poche.
@@ -14,7 +16,7 @@
 - Des marqueurs `// TODO(student, L2)` indiquent les points d'instrumentation.
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.l1.yml -f docker-compose.l2.yml up -d --build
+make up-l2
 ```
 
 UI : Prometheus http://localhost:9090 — Grafana http://localhost:3002 — webhook http://localhost:5001/alerts
@@ -98,7 +100,7 @@ Attendu : une ligne `http_requests_total{...route="/orders"...status="202"} 1`.
 ### Checkpoint
 
 ```bash
-curl -s http://localhost:3001/metrics 2>/dev/null | head -3   # worker direct ?
+# le worker n'est pas publié sur l'hôte : on l'interroge depuis le conteneur Prometheus
 docker compose exec prometheus wget -qO- http://worker:3002/metrics | grep redis_queue_depth
 ```
 
@@ -125,7 +127,7 @@ Attendu : `orders_total{status="completed"}` ≥ 1 côté worker (et `created` c
 ## Étape 5 — Brancher Prometheus
 
 1. Dans `prometheus/prometheus.yml`, **décommentez** les jobs `api` et `worker`.
-2. `docker compose restart prometheus` puis ouvrez http://localhost:9090/targets : les 5 jobs (prometheus, cadvisor, node-exporter, api, worker) doivent être **UP**.
+2. `docker compose restart prometheus` puis ouvrez http://localhost:9090/targets : `prometheus`, `api` et `worker` doivent être **UP** (en mode light, `cadvisor` et `node-exporter` sont DOWN : normal, ce TP ne les utilise pas).
 3. Dans l'onglet Graph de Prometheus, testez :
    ```
    rate(http_requests_total[1m])

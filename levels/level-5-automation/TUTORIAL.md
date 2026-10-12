@@ -1,11 +1,12 @@
 # Niveau 5 — Auto-remédiation : quand la plateforme se répare seule
 
 > **Prérequis** : niveaux 1 et 2 appliqués (le contrôleur lit vos métriques et
-> vos logs JSON). Le niveau 3 (tracing) n'est pas requis pour ce TP mais la
-> stack complète l'utilise.
+> vos logs JSON). La stack L5 empile l'overlay L3 : appliquez la démo
+> (`bash scripts/apply-solutions.sh 3`) avant `make up-l5`.
 >
-> **Durée** : ~2 h. **Fichiers** : `automation-controller/rules.js` et
-> `app/shared/db.js`.
+> **Durée** : ~2 h en version longue, ~30 min en édition 3 h. **Fichiers** :
+> `automation-controller/rules.js` (règle 1 ; les règles 2 et 3 sont fournies en
+> 3 h) ; `app/shared/db.js` n'est qu'une démo (étape 3).
 
 Jusqu'ici vous avez **observé** (logs, métriques, traces) puis **alerté**
 (SLO). Reste le chaînon final : quand l'alerte se déclenche à 3 h du matin,
@@ -31,7 +32,7 @@ anti-tempête : un contrôleur qui redémarre en boucle un conteneur qui crashe
 en boucle est pire que pas de contrôleur).
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.l1.yml -f docker-compose.l2.yml -f docker-compose.l5.yml up -d --build
+make up-l5
 docker compose logs -f automation-controller   # boucle OBSERVER en continu
 curl -s localhost:5002/containers | jq         # ce que le contrôleur voit
 curl -s localhost:5002/actions | jq            # piste d'audit (vide pour l'instant)
@@ -87,9 +88,9 @@ env, cmd, réseau). Comparez avec `docker compose up -d --scale worker=3` :
 même effet, mais sans dépendre des fichiers compose — et sans le risque de
 recréer les services avec une config partielle.
 
-Testez la règle : sans fault, le worker absorbe ~30 commandes/s et la queue ne
-sature jamais — comme en production, la saturation vient d'une dépendance
-ralentie. Injectez d'abord une latence SQL, puis générez la salve :
+Testez la règle : sans fault, le worker traite ~2,7 commandes/s et une salve courte
+se vide avant le seuil soutenu — comme en production, la saturation durable vient
+d'une dépendance ralentie. Injectez d'abord une latence SQL, puis générez la salve :
 
 ```bash
 curl -X POST localhost:4000/chaos/dep-slow -H 'Content-Type: application/json' -d '{"dependency":"postgres","ms":400}'
@@ -121,7 +122,7 @@ tout explose (vous l'avez vu au niveau 0 et 4). La bonne remédiation est **dans
 l'application** : un **circuit breaker** refuse les nouvelles requêtes SQL en
 fail-fast tant que le pool sature, au lieu de les empiler.
 
-Dans `app/shared/db.js` (fourni sous forme de démo, voir plus bas) : si `pool.waitingCount >= 5`, ouvrez
+Dans `app/shared/db.js` (démo : voir plus bas) : si `pool.waitingCount >= 5`, ouvrez
 le circuit ~10 s — `query()` throw une erreur claire (`code: 'ECIRCUITBREAKER'`)
 pendant l'ouverture, puis retente (semi-ouvert). L'utilisateur reçoit un 500
 immédiat au lieu d'attendre 30 s ; la charge redescend.
@@ -131,7 +132,7 @@ vive dans l'application** (circuit breakers, backoff, timeouts), le contrôleur
 ne gère que ce qui est hors de son périmètre (processus, réplicas, escalade).
 La règle 4 ne se programme donc **pas** dans `rules.js`.
 
-Le code du circuit breaker n'est pas fourni dans `db.js`. Pour le voir fonctionner : `make demo-circuit-breaker` (copie *uniquement* le `db.js` de référence, sans toucher à vos règles), `make up-l5`, puis `bash scripts/incident.sh l5-pool`
+Le `db.js` livré n'a **pas** de circuit breaker : la version de référence est une démo. Pour la voir fonctionner : `make demo-circuit-breaker` (copie *uniquement* le `db.js` de référence, sans toucher à vos règles), `make up-l5`, puis `bash scripts/incident.sh l5-pool`
 et observez `db_pool_waiting` + les 500 immédiats pendant l'ouverture.
 
 ## Étape 4 — Les actions elles-mêmes sont observables

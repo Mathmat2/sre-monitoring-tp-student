@@ -76,9 +76,12 @@ CARD=$(curl -sfG "$PROM_URL/api/v1/series" --data-urlencode 'match[]={__name__="
 
 # --- 4b. Chemin d'échec : un job en erreur est compté « failed », jamais « completed » ---
 if curl -sf -m 5 "$CHAOS_URL/chaos/status" >/dev/null; then
-  sleep 6   # laisse finir les commandes de sonde précédentes
-  C0=$(fsum 'orders_total{status="completed"}'); F0=$(fsum 'orders_total{status="failed"}')
+  # 1) on pose la faute, 2) on attend un scrape complet SOUS faute : à partir de là le compteur
+  # « completed » ne doit plus bouger (sinon la baseline serait un scrape périmé, d'avant la faute,
+  # et les commandes terminées entre-temps seraient comptées à tort).
   curl -s -m 5 -X POST "$CHAOS_URL/chaos/error-rate" -H 'Content-Type: application/json' -d '{"target":"worker","rate":1}' >/dev/null
+  sleep 12
+  C0=$(fsum 'orders_total{status="completed"}'); F0=$(fsum 'orders_total{status="failed"}')
   for _ in 1 2 3; do curl -s -m 5 -o /dev/null -X POST "$API_URL/orders" -H 'Content-Type: application/json' -d '{"item":"sonde échec","amount":1}'; done
   # On attend (30 s max) que Prometheus ait scrapé les échecs, au lieu d'un sleep fixe :
   # juste après un redémarrage, le premier scrape peut tarder.
@@ -88,11 +91,12 @@ if curl -sf -m 5 "$CHAOS_URL/chaos/status" >/dev/null; then
     F1=$(fsum 'orders_total{status="failed"}')
     awk -v a="$F0" -v b="$F1" 'BEGIN { exit !(b - a >= 3) }' && break
   done
-  curl -s -m 5 -X POST "$CHAOS_URL/chaos/reset" >/dev/null
-  sleep 6
+  sleep 6   # un scrape de plus, toujours sous faute
   C1=$(fsum 'orders_total{status="completed"}'); F1=$(fsum 'orders_total{status="failed"}')
+  curl -s -m 5 -X POST "$CHAOS_URL/chaos/reset" >/dev/null
   awk -v a="$F0" -v b="$F1" 'BEGIN { exit !(b - a >= 1) }' && ok "jobs en erreur comptés orders_total{status=\"failed\"} (+$(awk -v a="$F0" -v b="$F1" 'BEGIN{print b-a}'))" || bad "des jobs en erreur injectée ne sont pas comptés « failed » (étape 4b : incrémenter dans le catch)"
-  awk -v a="$C0" -v b="$C1" 'BEGIN { exit !(b - a < 1) }' && ok "aucun job en erreur n'est compté « completed »" || bad "des jobs en ERREUR sont comptés « completed » (+$(awk -v a="$C0" -v b="$C1" 'BEGIN{print b-a}')) : incrémentez après le traitement réussi, pas avant"
+  # tolérance : un job déjà en cours de traitement quand la faute est posée peut légitimement finir (+1, +2)
+  awk -v a="$C0" -v b="$C1" 'BEGIN { exit !(b - a < 3) }' && ok "aucun job en erreur n'est compté « completed »" || bad "des jobs en ERREUR sont comptés « completed » (+$(awk -v a="$C0" -v b="$C1" 'BEGIN{print b-a}')) : incrémentez après le traitement réussi, pas avant"
 else
   bad "chaos-injector injoignable ($CHAOS_URL) : impossible de tester le chemin d'échec"
 fi

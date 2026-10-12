@@ -72,7 +72,7 @@ if [ "${MODE:-}" = "3h" ]; then
 else
 echo "── 3. Règle 2 : queue saturée → scale workers ───────────────"
 BEFORE=$(curl -s -m 5 "$CTRL/actions" | jq '.actions | length')
-# Sans fault, le worker absorbe ~30 cmd/s et la queue se vide trop vite pour
+# Sans fault, le worker traite ~2,7 cmd/s : une salve courte se vide trop vite pour
 # dépasser le seuil de façon soutenue — comme en production, la saturation
 # vient d'une dépendance ralentie. On injecte donc une latence SQL.
 curl -s -m 5 -X POST "$CHAOS/chaos/dep-slow" -H 'Content-Type: application/json' \
@@ -134,6 +134,16 @@ done
 sleep 45   # laisse retomber orders_oldest_pending_seconds avant le test de perte
 fi
 
+# --- Hygiène : le test de la règle 3 ne doit dépendre ni des niveaux précédents ni d'un essai raté ---
+# Commandes laissées « pending » (perte L4, validate précédent...) : marquées « abandoned »,
+# sans toucher aux autres données.
+abandon_pending() {
+  local pg
+  pg=$(docker ps -q --filter 'label=com.docker.compose.service=postgres' | head -1)
+  [ -n "$pg" ] && docker exec "$pg" psql -U app orders_db -qc \
+    "UPDATE orders SET status='abandoned', error='validate-l5: nettoyage', updated_at=now() WHERE status IN ('pending','processing')" \
+    >/dev/null 2>&1
+}
 echo "── 3b. Règle 3 : commandes bloquées (signal applicatif) ─────"
 # Panne invisible pour l'infra : le worker acquitte les jobs sans les traiter.
 # HTTP reste en 202, la queue reste vide, les conteneurs sont « running » :
@@ -149,6 +159,18 @@ if ! curl -s -m 5 http://localhost:3001/health | jq -e '.ok' >/dev/null 2>&1; th
     sleep 3
   done
 fi
+abandon_pending
+# La règle 3 ne repagine pas pendant ORDERS_PAGE_DEDUP_MS (5 min) : si une page « commandes bloquées »
+# est récente (niveau précédent, essai précédent), la page du test serait masquée -> on attend.
+LAST_AGE=$(curl -s -m 5 "$CTRL/actions" | jq -r '
+  [.actions[] | select(.action.type=="page" and ((.action.message // "") | startswith("commandes bloqu")))
+   | (.at | sub("\\.[0-9]+Z$";"Z") | fromdateiso8601)] | max // 0 | (now - .) | floor')
+if [ "${LAST_AGE:-9999}" -lt 305 ] 2>/dev/null; then
+  WAIT=$((305 - LAST_AGE))
+  echo "     page « commandes bloquées » émise il y a ${LAST_AGE} s : attente de ${WAIT} s (dédup de 5 min du contrôleur)..."
+  sleep "$WAIT"
+fi
+sleep 8   # laisse les gauges (rafraîchies toutes les 2 s) et Prometheus refléter le nettoyage
 BEFORE=$(curl -s -m 5 "$CTRL/actions" | jq '.actions | length')
 curl -s -m 5 -X POST "$CHAOS/chaos/job-drop" -H 'Content-Type: application/json' \
   -d '{"target":"worker","rate":1}' >/dev/null 2>&1
@@ -165,8 +187,10 @@ for _ in $(seq 1 50); do
   sleep 3
 done
 curl -s -m 5 -X POST "$CHAOS/chaos/reset" >/dev/null 2>&1
+# nettoyage : ne pas laisser nos commandes perdues fausser la suite (capstone : make surprise)
+abandon_pending
 [ "$BLOCKED" = 1 ] && ok "commandes bloquées détectées → escalade humaine (action 'page')" \
-  || fail "pas de 'page' sur commandes bloquées en 150 s — règle 3 absente (orders_oldest_pending_seconds + queue vide)"
+  || fail "pas de 'page' sur commandes bloquées en 150 s — règle 3 absente ou modifiée (orders_oldest_pending_seconds + queue vide) ; vérifiez aussi /actions : une page « commandes bloquées » de moins de 5 min masque la suivante"
 
 echo "── 4. Piste d'audit ─────────────────────────────────────────"
 curl -s -m 5 "$CTRL/actions" | jq -e \

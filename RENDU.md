@@ -11,10 +11,16 @@ l'endroit indiqué par votre enseignant. Aucun accès à votre machine n'est né
 | **L2** — code | `app/api/server.js`, `app/worker/worker.js`, `prometheus/prometheus.yml`, `prometheus/rules/alerts.yml` | l'arbre du dépôt |
 | **L4** — code | `prometheus/rules/slo.yml` (SLI **commandes** + burn-rate) | l'arbre du dépôt |
 | **L5** — code | `automation-controller/rules.js` (règle 1) | l'arbre du dépôt |
+| **Réponses écrites** | questions des tutoriels : L1 étape 6, L2 étape 8, L3 étape 6, L4 étapes 4a/4 (court, une section par niveau) | `rendu/reponses.md` |
 | **Validations** | sortie complète des validateurs (voir ci-dessous) | `rendu/validations.txt` |
 | **Capstone** | quelle panne (`reveal`), détection, `/actions` du contrôleur, ce qui a/n'a pas marché | `rendu/capstone.md` |
 | **Postmortem** | gabarit `docs/POSTMORTEM_TEMPLATE.md`, blameless, actions vérifiables | `rendu/postmortem.md` |
 | **Plan B** | le fichier `.solutions-used.log` s'il existe (ne pas le supprimer) | racine |
+
+## Avant de rendre
+
+- Si vous avez appliqué la démo L3 (`apply-solutions.sh 3`), elle a **écrasé** votre `app/api/server.js` et `app/worker/worker.js` : récupérez votre code L2 avec `make restore-l2` (il est revu à la main).
+- `bash scripts/incident.sh reset` et `make stop-traffic`.
 
 ## Produire la preuve de validation
 

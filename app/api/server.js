@@ -20,6 +20,15 @@ app.use(express.json());
 // Voir levels/level-2-metrics/TUTORIAL.md, étapes 3 et 4. (Les noms de métriques
 // sont déjà définis dans app/shared/metrics.js.)
 
+// ---- Corrélation de requêtes (L1, fourni) ----
+app.use((req, res, next) => {
+  const requestId = req.get('x-request-id') || crypto.randomUUID();
+  res.set('x-request-id', requestId);
+  req.requestId = requestId;
+  req.log = log.child({ requestId });
+  next();
+});
+
 // ---- Hook d'injection de fautes (infra fournie, ne pas modifier) ----
 // Lit chaos:config dans Redis à chaque requête et applique cpu-burn / mem-leak /
 // latence / taux d'erreur injectés par le chaos-injector.
@@ -27,7 +36,7 @@ app.use(async (req, res, next) => {
   try {
     const faults = await chaos.applyFaults();
     if (faults.shouldError) {
-      console.error('chaos: requête rejetée (erreur injectée)'); // infra : trace minimale de l'injection
+      req.log.error({ injected: true }, 'chaos: requête rejetée (erreur injectée)');
       return res.status(500).json({ error: 'internal error' });
     }
     if (faults.delayMs > 0) {
@@ -37,15 +46,6 @@ app.use(async (req, res, next) => {
   } catch (err) {
     next();
   }
-});
-
-// ---- Corrélation de requêtes (solution L1) ----
-app.use((req, res, next) => {
-  const requestId = req.get('x-request-id') || crypto.randomUUID();
-  res.set('x-request-id', requestId);
-  req.requestId = requestId;
-  req.log = log.child({ requestId });
-  next();
 });
 
 app.use((req, res, next) => {

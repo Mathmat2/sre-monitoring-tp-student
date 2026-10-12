@@ -14,7 +14,7 @@ make prefetch
 ```
 
 L'arbre livré est déjà au bon état : L1 appliqué (logs JSON), L2 avec `metrics.js`, les gauges DB/queue,
-`backlog.js` et le dashboard fournis, L5 avec les règles 2 et 3 pré-écrites. `docker-compose.light.yml` retire cAdvisor
+`backlog.js` (qui alimente aussi `redis_queue_depth`) et le dashboard fournis, L5 avec les règles 2 et 3 pré-écrites. `docker-compose.light.yml` retire cAdvisor
 et node-exporter (laptops) : leurs targets seront DOWN dans Prometheus, c'est normal.
 
 ## Déroulé conseillé
@@ -33,8 +33,15 @@ Lisez la section du niveau dans `docs/NOTIONS.md` (5-8 min) avant chaque bloc de
 | 2:27–2:57 | **L5** : règle 1 (15 min) + capstone (10 min) | **Code** + capstone | `make up-l5`, `make validate-l5`, `make surprise`, `make reveal` |
 | 2:57–3:00 | Bilan, consigne du postmortem (à rendre sous 24 h, voir `RENDU.md`) | | |
 
+### Hygiène entre deux niveaux (évite 90 % des « ça ne valide pas »)
+
+- `bash scripts/incident.sh reset` avant de changer de niveau : une faute lancée au niveau précédent peut durer plusieurs minutes.
+- `make stop-traffic` (ou Ctrl-C) avant un validateur : les validateurs injectent leurs propres fautes ; du trafic ambiant les rend plus lents à conclure.
+- Les fenêtres 6 h / 3 j des SLO couvrent **toute la séance** : les fautes de L1-L3 y sont comptées, d'où des alertes « lentes » déjà actives en L4 (c'est normal ici).
+- `validate-l5` abandonne lui-même les commandes restées `pending` et attend la fin de la déduplication de 5 min du contrôleur ; il laisse la base propre pour le capstone.
+
 ⚠️ **L3 écrase vos fichiers L2** : la référence L3 est cumulative (elle contient les métriques). Validez L2 *avant*.
-`apply-solutions.sh` sauvegarde vos fichiers dans `.student-backup/`.
+`apply-solutions.sh` sauvegarde vos fichiers dans `.student-backup/` ; `make restore-l2` les récupère après la démo (à faire avant le rendu, voir `RENDU.md`).
 
 ## L2 — ce que vous codez (≈ 40 min)
 
@@ -47,7 +54,7 @@ pool DB et de la queue, `app/shared/backlog.js`, le dashboard Grafana (`grafana/
 2. **Étape 4** — `/metrics` du worker (port 3002) + `job_duration_seconds`.
    **Étape 4b** — métriques **métier** : `orders_total{status="created"}` dans l'api après l'`INSERT` ;
    `orders_total{status="completed"|"failed"}` et `order_processing_seconds` dans le worker ;
-   appeler `startBacklogRefresh()` (fourni) au démarrage du worker.
+   appeler `startBacklogRefresh()` (fourni : gauges backlog **et** `redis_queue_depth`) au démarrage du worker.
 3. **Étape 5** — décommenter les jobs `api` / `worker` dans `prometheus/prometheus.yml`, `docker compose restart prometheus`.
 4. **Étape 7** — `prometheus/rules/alerts.yml` : `ErrorRateTooHigh`, `P99LatencyTooHigh`.
 5. `bash scripts/traffic.sh 2` + `make incident-l2`, regardez dashboard + alertes, puis `make validate-l2`.

@@ -10,10 +10,12 @@
 
 - `docker-compose.l3.yml` ajoute **Jaeger** (all-in-one, récepteur OTLP activé, UI sur http://localhost:16686) et **surcharge les commandes** de api/worker pour démarrer avec `--require ./…/tracing.js` : le SDK doit s'initialiser **avant** tout autre module, sinon l'auto-instrumentation rate des requêtes.
 - Les wrappers `shared/db.js` et `shared/queue.js` créent déjà des spans `postgres.<op>` / `redis.<op>` englobant le délai injecté par le chaos — no-op tant que le SDK n'est pas bootstrappé.
-- L'en-tête `TODO(student, L3)` marque les trois endroits à instrumenter.
+- Dans l'édition 3 h les trois endroits (`tracing.js`, span `processOrder`, propagation) sont **déjà instrumentés par la référence** : il n'y a plus de marqueur `TODO(student, L3)` ; les étapes 1 à 5 décrivent ce que la référence fait, à lire (ou à refaire hors séance).
+- La démo remplace vos `api/server.js` et `worker/worker.js` : `make restore-l2` les récupère ensuite.
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.l1.yml -f docker-compose.l2.yml -f docker-compose.l3.yml up -d --build
+bash scripts/apply-solutions.sh 3
+make up-l3
 ```
 
 UI : Jaeger http://localhost:16686
@@ -128,7 +130,8 @@ Votre corrélation L1 repose sur `x-request-id`. OpenTelemetry propage aussi un 
 ## Étape 8 — Validation
 
 ```bash
-./levels/level-3-tracing/validate.sh
+bash scripts/incident.sh reset && make stop-traffic   # l'incident L3 ralentit Redis
+make validate-l3
 ```
 
 ## Livrable

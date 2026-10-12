@@ -12,6 +12,4 @@ for p in 3000 3001 3002 4000 5001 5002 9090 9093 3100 16686; do
     echo "  ATTENTION port $p déjà utilisé (sauf si c'est ce TP déjà lancé)"
   fi
 done
-mem=$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo 0)
-[ "$mem" -ge 3500000000 ] 2>/dev/null && echo "  OK     mémoire Docker ≥ 3.5 Go" || echo "  ATTENTION mémoire Docker < 3.5 Go : augmentez-la (Docker Desktop > Resources)"
 [ "$ok" = 1 ] && echo "Environnement prêt." || { echo "Corrigez les ÉCHEC ci-dessus."; exit 1; }

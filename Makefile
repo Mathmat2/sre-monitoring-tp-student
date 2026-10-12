@@ -5,7 +5,7 @@ L2 = $(L1) -f docker-compose.l2.yml
 L3 = $(L2) -f docker-compose.l3.yml
 L5 = $(L3) -f docker-compose.l5.yml
 
-.PHONY: need-l3 check prefetch up-l0 up-l1 up-l2 up-l3 up-l5 traffic down reset \
+.PHONY: restore-l2 stop-traffic need-l3 check prefetch up-l0 up-l1 up-l2 up-l3 up-l5 traffic down reset \
         incident-l0 incident-l1 incident-l2 incident-l3 incident-l4 incident-l5 surprise reveal \
         validate-l1 validate-l2 validate-l3 validate-l4 validate-l5 demo-circuit-breaker
 
@@ -32,6 +32,15 @@ need-l3:
 
 traffic:
 	bash scripts/traffic.sh 2
+stop-traffic:  ## arrête un traffic.sh lancé en tâche de fond
+	@pkill -f scripts/traffic.sh && echo "trafic arrêté" || echo "aucun trafic en cours"
+
+restore-l2:  ## après la démo L3 : récupère VOTRE api/worker L2 sauvegardés par apply-solutions.sh 3
+	@for d in $$(ls -d .student-backup/2* 2>/dev/null | sort -r); do \
+	  if [ -f "$$d/app/api/server.js" ] && [ -f "$$d/app/worker/worker.js" ]; then \
+	    cp "$$d/app/api/server.js" app/api/server.js; cp "$$d/app/worker/worker.js" app/worker/worker.js; \
+	    echo "api/worker restaurés depuis $$d (le tracing de la démo L3 n'y est plus : relancez make up-l5)"; exit 0; \
+	  fi; done; echo "aucune sauvegarde de vos fichiers L2 dans .student-backup/"; exit 1
 
 # Pannes à déclencher soi-même (le contenu reste caché, cf. scripts/incident.sh)
 incident-l0: ; bash scripts/incident.sh l0

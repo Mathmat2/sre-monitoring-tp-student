@@ -4,7 +4,7 @@
 
 ## 1. Vocabulaire
 
-- **SLI** : métrique qui mesure l'expérience utilisateur. Ici : `sli_orders_ratio_Xm` = fraction des commandes créées qui sont **terminées en moins de 10 s** (SLI métier), et `sli_availability_ratio_Xm` = fraction de requêtes `POST /orders` **sans** 5xx (SLI HTTP). Le premier voit les jobs perdus, pas le second.
+- **SLI** : métrique qui mesure l'expérience utilisateur. Ici : `sli_orders_ratio_Xm` = fraction des commandes créées qui sont **terminées en moins de 10 s** (SLI métier), et `sli_availability_ratio_Xm` = fraction des réponses de l'api **sans** 5xx, **toutes routes confondues** (y compris `route="unmatched"`) (SLI HTTP). Le premier voit les jobs perdus, pas le second.
 - **SLO** : objectif. `99.5 %` de disponibilité sur 30 jours glissants.
 - **Error budget** : la marge d'échec autorisée. SLO 99.5 % → **budget = 0.5 %** des requêtes.
 - **Burn rate** : vitesse de consommation du budget, sans unité de temps :

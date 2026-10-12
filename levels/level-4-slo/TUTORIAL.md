@@ -6,6 +6,8 @@
 >
 > Changement de posture : aux niveaux précédents on diagnostiquait ; ici on **décide** (ralentir les features ? investir en fiabilité ?) à partir d'un chiffre partagé.
 
+> **Édition 3 h** : seuls le SLI **commandes** (`sli_orders_ratio_5m` / `_1h`) et l'alerte `SLOOrdersBurnFast` sont exigés (`make validate-l4`). La disponibilité HTTP, le SLI latence, les alertes lentes, l'incident long (étape 4) et le postmortem sont à faire **hors séance**.
+
 ## Prérequis
 
 Stack L1+L2 actives (aucun nouveau conteneur). La doc de référence `docs/MULTI_BURN_RATE_ALERTING.md` résume le pattern Google SRE — lisez-la AVANT d'écrire vos règles, elle contient la table des fenêtres et le piège des divisions par zéro.
@@ -59,7 +61,7 @@ Attendu : `1` (ou proche de 1) tant que tout va bien. Générez du trafic si la 
 3. `SLOAvailabilityBurnFast` : même logique sur `sli_availability_ratio_*`.
 4. `SLOAvailabilityBurnSlow`.
 
-⚠️ Les fenêtres 6 h/3 j ne s'allumeront pas pendant la séance (il faudrait des heures de données) : c'est normal — ce qui se vérifie, c'est que la règle **charge** et que son expression est correcte. La brûlure rapide, elle, doit réellement partir pendant le scénario.
+⚠️ Les fenêtres 6 h/3 j couvrent toute la séance : les fautes des niveaux précédents (L1-L3) y sont comptées, donc les alertes « lentes » **peuvent déjà être actives** en L4 (sur un environnement vierge, elles resteraient muettes). Ce qui se vérifie : la règle **charge** et son expression est correcte. La brûlure rapide, elle, doit réellement partir pendant le scénario (≈ 3 min : 5 min de fenêtre + `for: 2m`). Si le SLI 1 h est déjà dégradé par un incident précédent, `bash scripts/incident.sh reset` puis laissez 10 min de trafic sain.
 
 <details>
 <summary>Indice</summary>

@@ -7,6 +7,7 @@ const pino = require('pino');
 const baseLogger = pino({
   level: process.env.LOG_LEVEL || 'info',
   timestamp: pino.stdTimeFunctions.isoTime,
+  formatters: { level: (label) => ({ level: label }) }, // "level":"error" (et non 50) : filtrable en LogQL
   base: { service: process.env.SERVICE_NAME || 'unknown' },
 });
 
